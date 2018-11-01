@@ -7,7 +7,7 @@ services:
     volumes:
       - ./src/:/src
       - ./data/:/src/data
-    command: ["bash", "run.sh"]
+    command: ["python", "-m", "qanta.tfidf", "web"]
   eval:
     image: "docker.io/entilzha/quizbowl:0.1"
     volumes:
