@@ -9,8 +9,13 @@ from tqdm import tqdm
 from sklearn.feature_extraction.text import TfidfVectorizer
 from flask import Flask, jsonify, request
 
-from qanta import util
-from qanta.dataset import QuizBowlDataset
+import util
+from dataset import QuizBowlDataset
+
+import re
+import nltk
+from nltk.corpus import stopwords
+import nltk.tokenize as nt
 
 
 MODEL_PATH = 'tfidf.pickle'
@@ -60,6 +65,35 @@ class TfidfGuesser:
             ngram_range=(1, 3), min_df=2, max_df=.9
         ).fit(x_array)
         self.tfidf_matrix = self.tfidf_vectorizer.transform(x_array)
+    
+    def train_type_filter(self, training_data):
+        stop_words = set(stopwords.words('english')) 
+        questions = training_data[0]
+        answers = training_data[1]
+        word_counts = defaultdict(int)
+        for q in questions:
+            sentence_tokens = [nt.word_tokenize(sentence) for sentence in q]
+            pos_sentences = [nltk.pos_tag(s) for s in sentence_tokens]
+            for sentence in pos_sentences:
+                add_word = False
+                for token in sentence:
+                    word = token[0]
+                    pos = token[1]
+                    if add_word:
+                        if word not in stop_words and pos in ["NN", "NNS"]:
+                            word_counts[word] += 1
+                            add_word = False
+                    if word.lower() in ["this", "these"]:
+                        add_word = True
+
+        # regex = re.compile(r'(?:this|these)\s([a-zA-Z]*)\s', re.IGNORECASE)
+        # for q in questions:
+        #     type_words = regex.findall(" ".join(q))
+        #     for w in type_words:
+        #         if w not in stop_words:
+        #             word_counts[w] += 1
+        sorted_type_words = sorted(word_counts.items(), key=lambda kv: kv[1], reverse=True)
+        return None
 
     def guess(self, questions: List[str], max_n_guesses: Optional[int]) -> List[List[Tuple[str, float]]]:
         representations = self.tfidf_vectorizer.transform(questions)
@@ -147,6 +181,11 @@ def train():
     tfidf_guesser = TfidfGuesser()
     tfidf_guesser.train(dataset.training_data())
     tfidf_guesser.save()
+
+def train_type_filter():
+    dataset = QuizBowlDataset(guesser_train=True)
+    tfidf_guesser = TfidfGuesser()
+    tfidf_guesser.train_type_filter(dataset.training_data())
 
 
 @cli.command()
