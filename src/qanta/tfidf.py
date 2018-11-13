@@ -71,7 +71,11 @@ class TfidfGuesser:
         questions = training_data[0]
         answers = training_data[1]
         word_counts = defaultdict(int)
+        iteration = 0
         for q in questions:
+            iteration += 1
+            if iteration % 100 == 0:
+                print("Starting iteration" + str(iteration))
             sentence_tokens = [nt.word_tokenize(sentence) for sentence in q]
             pos_sentences = [nltk.pos_tag(s) for s in sentence_tokens]
             for sentence in pos_sentences:
@@ -86,13 +90,9 @@ class TfidfGuesser:
                     if word.lower() in ["this", "these"]:
                         add_word = True
 
-        # regex = re.compile(r'(?:this|these)\s([a-zA-Z]*)\s', re.IGNORECASE)
-        # for q in questions:
-        #     type_words = regex.findall(" ".join(q))
-        #     for w in type_words:
-        #         if w not in stop_words:
-        #             word_counts[w] += 1
         sorted_type_words = sorted(word_counts.items(), key=lambda kv: kv[1], reverse=True)
+        with open('sorted_type_words.txt', 'w') as file:
+            file.write(json.dumps(sorted_type_words))
         return None
 
     def guess(self, questions: List[str], max_n_guesses: Optional[int]) -> List[List[Tuple[str, float]]]:
