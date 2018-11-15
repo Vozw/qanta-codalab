@@ -16,7 +16,7 @@ import re
 import nltk
 from nltk.corpus import stopwords
 import nltk.tokenize as nt
-
+from pattern.en import singularize
 
 MODEL_PATH = 'tfidf.pickle'
 BUZZ_NUM_GUESSES = 10
@@ -68,31 +68,32 @@ class TfidfGuesser:
     
     def train_type_filter(self, training_data):
         stop_words = set(stopwords.words('english')) 
-        questions = training_data[0]
+        questions = training_data[0][:1000]
         answers = training_data[1]
+        type_dict = defaultdict(lambda: {'word_count': 0, 'answer_set': set()})
         word_counts = defaultdict(int)
-        iteration = 0
-        for q in questions:
-            iteration += 1
-            if iteration % 100 == 0:
-                print("Starting iteration" + str(iteration))
+        type_list = defaultdict(set)
+        for i, q in enumerate(questions):
+            if i % 100 == 0:
+                print("Starting iteration " + str(i))
             sentence_tokens = [nt.word_tokenize(sentence) for sentence in q]
             pos_sentences = [nltk.pos_tag(s) for s in sentence_tokens]
             for sentence in pos_sentences:
                 add_word = False
                 for token in sentence:
-                    word = token[0]
+                    word = singularize(token[0])
                     pos = token[1]
                     if add_word:
                         if word not in stop_words and pos in ["NN", "NNS"]:
-                            word_counts[word] += 1
+                            type_dict[word]["word_count"] += 1
+                            type_dict[word]["answer_set"].update({answers[i]})
                             add_word = False
                     if word.lower() in ["this", "these"]:
                         add_word = True
 
-        sorted_type_words = sorted(word_counts.items(), key=lambda kv: kv[1], reverse=True)
-        with open('sorted_type_words.txt', 'w') as file:
-            file.write(json.dumps(sorted_type_words))
+        sorted_type_dict = sorted(type_dict.items(), key=lambda kv: kv[1]["word_count"], reverse=True)
+        with open('sorted_type_dict.json', 'w') as file:
+            file.write(json.dumps(sorted_type_dict))
         return None
 
     def guess(self, questions: List[str], max_n_guesses: Optional[int]) -> List[List[Tuple[str, float]]]:
