@@ -11,6 +11,7 @@ import logging
 import socket
 import errno
 from tqdm import tqdm
+import csv
 
 
 elog = logging.getLogger('eval')
@@ -146,6 +147,7 @@ def check_port(hostname, port):
 @click.option('--curve-pkl', default='curve_pipeline.pkl')
 @click.option('--retries', default=20)
 @click.option('--retry-delay', default=3)
+
 def evaluate(input_dir, output_dir, score_dir, char_step_size, hostname,
              norun_web, wait, curve_pkl, retries, retry_delay):
     try:
@@ -179,6 +181,8 @@ def evaluate(input_dir, output_dir, score_dir, char_step_size, hostname,
 
         elog.info('Computing curve score of results')
         curve_score = CurveScore(curve_pkl=curve_pkl)
+        type_answers=[]
+        type_guess=[]
         first_acc = []
         end_acc = []
         ew = []
@@ -186,11 +190,14 @@ def evaluate(input_dir, output_dir, score_dir, char_step_size, hostname,
         for question_idx, guesses in enumerate(answers):
             question = questions[question_idx]
             answer = question['page']
+            
             first_guess = None
             for g in guesses:
                 if g['sent_index'] == 1:
                     first_guess = g['guess']
                     break
+            type_guess.append(guesses[-1]['guess'])
+            type_answers.append(answer)
             first_acc.append(first_guess == answer)
             end_acc.append(guesses[-1]['guess'] == answer)
             ew.append(curve_score.score(guesses, question))
@@ -201,6 +208,11 @@ def evaluate(input_dir, output_dir, score_dir, char_step_size, hostname,
             'expected_wins': sum(ew) * 1.0 / len(ew),
             'expected_wins_optimal': sum(ew_opt) * 1.0 / len(ew_opt),
         }
+        
+        with open('type_pred.csv', 'w') as f:
+            writer = csv.writer(f)
+            writer.writerows(zip(type_answers,type_guess))
+    
         with open(score_dir, 'w') as f:
             json.dump(eval_out, f)
         print(json.dumps(eval_out))
