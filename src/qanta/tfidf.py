@@ -17,6 +17,8 @@ import nltk
 from nltk.corpus import stopwords
 import nltk.tokenize as nt
 from pattern.en import singularize
+# from apiclient.discovery import build
+import pandas as pd
 
 MODEL_PATH = 'tfidf.pickle'
 BUZZ_NUM_GUESSES = 10
@@ -65,14 +67,33 @@ class TfidfGuesser:
             ngram_range=(1, 3), min_df=2, max_df=.9
         ).fit(x_array)
         self.tfidf_matrix = self.tfidf_vectorizer.transform(x_array)
-    
+
+    # Informational function
+    def count_found_answers(self, answers, wiki_to_type):
+        count_found = 0
+        for i, answer in enumerate(answers):
+            if i % 25 == 0: print("Iteration: " + str(i))
+            if wiki_to_type.index[wiki_to_type["Entity"] == answer.replace('_', ' ')].size:
+                count_found += 1
+        print("Count found: " + str(count_found))
+        print("Total answers: " + str(len(answers)))
+
+    # Informational function
+    def rank_unique_answers(self, answers):
+        answer_dict = defaultdict(int)
+        for answer in answers:
+            answer_dict[answer] += 1
+        sorted_answer_dict = sorted(answer_dict.items(), key=lambda kv: kv[1], reverse=True)
+        print("Num unique answers: " + str(len(answer_dict.keys())))
+        with open('sorted_answer_dict.json', 'w') as file:
+            file.write(json.dumps(sorted_answer_dict))
+
     def train_type_filter(self, training_data):
-        stop_words = set(stopwords.words('english')) 
+        wiki_to_type = pd.read_table("slim-freebase-types.tsv", engine="python")
+        stop_words = set(stopwords.words('english'))
         questions = training_data[0][:1000]
-        answers = training_data[1]
-        type_dict = defaultdict(lambda: {'word_count': 0, 'answer_set': set()})
-        word_counts = defaultdict(int)
-        type_list = defaultdict(set)
+        answers = training_data[1][:1000]
+        type_dict = defaultdict(lambda: {'word_count': 0, 'answer_type_set': set()})
         for i, q in enumerate(questions):
             if i % 100 == 0:
                 print("Starting iteration " + str(i))
@@ -81,12 +102,12 @@ class TfidfGuesser:
             for sentence in pos_sentences:
                 add_word = False
                 for token in sentence:
-                    word = singularize(token[0])
+                    word = token[0]
                     pos = token[1]
                     if add_word:
                         if word not in stop_words and pos in ["NN", "NNS"]:
-                            type_dict[word]["word_count"] += 1
-                            type_dict[word]["answer_set"].update({answers[i]})
+                            type_dict[singularize(token[0])]["word_count"] += 1
+                            type_dict[singularize(token[0])]["answer_type_set"].update(self.get_answer_type(answers[i], wiki_to_type))
                             add_word = False
                     if word.lower() in ["this", "these"]:
                         add_word = True
@@ -95,6 +116,10 @@ class TfidfGuesser:
         with open('sorted_type_dict.json', 'w') as file:
             file.write(json.dumps(sorted_type_dict))
         return None
+
+    def get_answer_type(self, answer, wiki_to_type):
+        answer_indices = wiki_to_type.index[wiki_to_type["Entity"] == answer.replace('_', ' ')]
+        return wiki_to_type.iloc[answer_indices]["Type"].values
 
     def guess(self, questions: List[str], max_n_guesses: Optional[int]) -> List[List[Tuple[str, float]]]:
         representations = self.tfidf_vectorizer.transform(questions)
