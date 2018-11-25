@@ -1,3 +1,4 @@
+.vscode/
 src/predictions.json
 src/scores.json
 data/*
