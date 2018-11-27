@@ -1,21 +1,18 @@
 from typing import List, Optional, Tuple
 from collections import defaultdict
-import pickle
 import json
 from os import path
 
 import click
 from tqdm import tqdm
-from sklearn.feature_extraction.text import TfidfVectorizer
 from flask import Flask, jsonify, request
 
 import util
 from dataset import QuizBowlDataset
+from danguesser import DanGuesser
 
-MODEL_PATH = 'dan.pickle'
 BUZZ_NUM_GUESSES = 10
 BUZZ_THRESHOLD = 0.3
-
 
 def guess_and_buzz(model, question_text) -> Tuple[str, bool]:
     guesses = model.guess([question_text], BUZZ_NUM_GUESSES)[0]
@@ -32,30 +29,6 @@ def batch_guess_and_buzz(model, questions) -> List[Tuple[str, bool]]:
         buzz = scores[0] / sum(scores) >= BUZZ_THRESHOLD
         outputs.append((guesses[0][0], buzz))
     return outputs
-
-
-class DanGuesser:
-    def __init__(self):
-        pass
-
-    def train(self, training_data) -> None:
-        questions = training_data[0]
-        answers = training_data[1]
-        
-
-    def guess(self, questions: List[str], max_n_guesses: Optional[int]) -> List[List[Tuple[str, float]]]:
-        return None
-
-    def save(self):
-        return None
-
-    @classmethod
-    def load(cls):
-        with open(MODEL_PATH, 'rb') as f:
-            params = pickle.load(f)
-            guesser = DanGuesser()
-            return guesser
-
 
 def create_app(enable_batch=True):
     dan_guesser = DanGuesser.load()
@@ -110,7 +83,7 @@ def train():
     """
     dataset = QuizBowlDataset(guesser_train=True)
     dan_guesser = DanGuesser()
-    dan_guesser.train(dataset.training_data())
+    dan_guesser.train(dataset.questions_by_fold())
     dan_guesser.save()
 
 @cli.command()

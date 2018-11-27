@@ -278,7 +278,7 @@ if __name__ == "__main__":
     parser.add_argument('--test', action='store_true', default=False)
     parser.add_argument('--save-model', type=str, default='q_type.pt')
     parser.add_argument('--load-model', type=str, default='q_type.pt')
-    parser.add_argument('--num-classes', type=int, default=136)
+    parser.add_argument('--num-classes', type=int, default=960)
     parser.add_argument('--checkpoint', type=int, default=50)
 
     args = parser.parse_args()
