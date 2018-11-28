@@ -56,11 +56,11 @@ def vectorize(ex, word2ind, unique_answers):
     
     return [toIndex(word) for word in question_text], question_label
 
-def extract_unique_answer_set(train_data):
+def extract_unique_answer_list(train_data):
     answer_set = set()
     for example in train_data:
         answer_set.add(example.page)
-    return answer_set
+    return list(answer_set)
     
 class Question_Dataset(Dataset):
     """
@@ -163,7 +163,7 @@ class DanGuesser:
         dev_data = questions[GUESSER_DEV_FOLD]
         test_data = questions[GUESSER_TEST_FOLD]
 
-        unique_answers = extract_unique_answer_set(train_data)
+        unique_answers = extract_unique_answer_list(train_data)
         voc, word2ind, ind2word = load_words(train_data)
 
         model = DanModel(len(unique_answers), len(voc))
