@@ -15,7 +15,8 @@ from qanta.dataset import QuizBowlDataset
 
 MODEL_PATH = 'tfidf.pickle'
 BUZZ_NUM_GUESSES = 10
-BUZZ_THRESHOLD = 0.3
+BUZZ_THRESHOLD = 0.477
+# Sample edit
 
 
 def guess_and_buzz(model, question_text) -> Tuple[str, bool]:
