@@ -15,23 +15,23 @@ from qanta.dataset import QuizBowlDataset
 
 MODEL_PATH = 'tfidf.pickle'
 BUZZ_NUM_GUESSES = 10
-BUZZ_THRESHOLD = 0.477
-# Sample edit
+BUZZ_THRESHOLD = 0.455
+# Sample edit 2.0
 
 
-def guess_and_buzz(model, question_text) -> Tuple[str, bool]:
-    guesses = model.guess([question_text], BUZZ_NUM_GUESSES)[0]
+def guess_and_buzz(model, question_text, hparams) -> Tuple[str, bool]:
+    guesses = model.guess([question_text], hparams[0])[0]
     scores = [guess[1] for guess in guesses]
-    buzz = scores[0] / sum(scores) >= BUZZ_THRESHOLD
+    buzz = scores[0] / sum(scores) >= hparams[1]
     return guesses[0][0], buzz
 
 
-def batch_guess_and_buzz(model, questions) -> List[Tuple[str, bool]]:
-    question_guesses = model.guess(questions, BUZZ_NUM_GUESSES)
+def batch_guess_and_buzz(model, questions, hparams) -> List[Tuple[str, bool]]:
+    question_guesses = model.guess(questions, hparams[0])
     outputs = []
     for guesses in question_guesses:
         scores = [guess[1] for guess in guesses]
-        buzz = scores[0] / sum(scores) >= BUZZ_THRESHOLD
+        buzz = scores[0] / sum(scores) >= hparams[1]
         outputs.append((guesses[0][0], buzz))
     return outputs
 
@@ -99,7 +99,8 @@ def create_app(enable_batch=True):
     @app.route('/api/1.0/quizbowl/act', methods=['POST'])
     def act():
         question = request.json['text']
-        guess, buzz = guess_and_buzz(tfidf_guesser, question)
+        hparams = request.json['hp']
+        guess, buzz = guess_and_buzz(tfidf_guesser, question, hparams)
         return jsonify({'guess': guess, 'buzz': True if buzz else False})
 
     @app.route('/api/1.0/quizbowl/status', methods=['GET'])
@@ -113,9 +114,10 @@ def create_app(enable_batch=True):
     @app.route('/api/1.0/quizbowl/batch_act', methods=['POST'])
     def batch_act():
         questions = [q['text'] for q in request.json['questions']]
+        hparams = [q['hp'] for q in request.json['questions']]
         return jsonify([
             {'guess': guess, 'buzz': True if buzz else False}
-            for guess, buzz in batch_guess_and_buzz(tfidf_guesser, questions)
+            for guess, buzz in batch_guess_and_buzz(tfidf_guesser, questions, hparams)
         ])
 
 

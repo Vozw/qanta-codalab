@@ -21,6 +21,11 @@ fh.setFormatter(formatter)
 
 logging.getLogger('requests').setLevel(logging.CRITICAL)
 
+hp_num_guesses = None
+hp_threshold = None
+h1_values = [7, 10, 13]
+h2_values = [0.3, 0.5, 0.7]
+
 
 class CurveScore:
     def __init__(self, curve_pkl='../curve_pipeline.pkl'):
@@ -87,7 +92,8 @@ def get_question_query(qid, question, char_idx):
             'question_idx': qid,
             'sent_index': sent_idx,
             'char_index': char_idx,
-            'text': question['text'][:char_idx]
+            'text': question['text'][:char_idx],
+            'hp': (hp_num_guesses, hp_threshold)
     }
     return query
 
@@ -164,46 +170,58 @@ def evaluate(input_dir, output_dir, score_dir, char_step_size, hostname,
 
         with open(input_dir) as f:
             questions = json.load(f)['questions']
-        if status is not None and status['batch'] is True:
-            url = f'http://{hostname}:4861/api/1.0/quizbowl/batch_act'
-            answers = get_answer_batch(url, questions,
-                                       char_step_size,
-                                       status['batch_size'])
-        else:
-            url = f'http://{hostname}:4861/api/1.0/quizbowl/act'
-            answers = get_answer_single(url, questions,
-                                        char_step_size)
+            
+        artioutput = open("artioutput.txt", "w")
+        artioutput.write("Start of output")
+        
+        for cur_hp in [(h1, h2) for h1 in h1_values for h2 in h2_values]:
+            hp_num_guesses = h1
+            hp_threshold = h2
+            
+            if status is not None and status['batch'] is True:
+                url = f'http://{hostname}:4861/api/1.0/quizbowl/batch_act'
+                answers = get_answer_batch(url, questions,
+                                           char_step_size,
+                                           status['batch_size'])
+            else:
+                url = f'http://{hostname}:4861/api/1.0/quizbowl/act'
+                answers = get_answer_single(url, questions,
+                                            char_step_size)
 
-        with open(output_dir, 'w') as f:
-            json.dump(answers, f)
+            with open(output_dir, 'w') as f:
+                json.dump(answers, f)
 
-        elog.info('Computing curve score of results')
-        curve_score = CurveScore(curve_pkl=curve_pkl)
-        first_acc = []
-        end_acc = []
-        ew = []
-        ew_opt = []
-        for question_idx, guesses in enumerate(answers):
-            question = questions[question_idx]
-            answer = question['page']
-            first_guess = None
-            for g in guesses:
-                if g['sent_index'] == 1:
-                    first_guess = g['guess']
-                    break
-            first_acc.append(first_guess == answer)
-            end_acc.append(guesses[-1]['guess'] == answer)
-            ew.append(curve_score.score(guesses, question))
-            ew_opt.append(curve_score.score_optimal(guesses, question))
-        eval_out = {
-            'first_acc': sum(first_acc) * 1.0 / len(first_acc),
-            'end_acc': sum(end_acc) * 1.0 / len(end_acc),
-            'expected_wins': sum(ew) * 1.0 / len(ew),
-            'expected_wins_optimal': sum(ew_opt) * 1.0 / len(ew_opt),
-        }
-        with open(score_dir, 'w') as f:
-            json.dump(eval_out, f)
-        print(json.dumps(eval_out))
+            elog.info('Computing curve score of results')
+            curve_score = CurveScore(curve_pkl=curve_pkl)
+            first_acc = []
+            end_acc = []
+            ew = []
+            ew_opt = []
+            for question_idx, guesses in enumerate(answers):
+                question = questions[question_idx]
+                answer = question['page']
+                first_guess = None
+                for g in guesses:
+                    if g['sent_index'] == 1:
+                        first_guess = g['guess']
+                        break
+                first_acc.append(first_guess == answer)
+                end_acc.append(guesses[-1]['guess'] == answer)
+                ew.append(curve_score.score(guesses, question))
+                ew_opt.append(curve_score.score_optimal(guesses, question))
+            eval_out = {
+                'first_acc': sum(first_acc) * 1.0 / len(first_acc),
+                'end_acc': sum(end_acc) * 1.0 / len(end_acc),
+                'expected_wins': sum(ew) * 1.0 / len(ew),
+                'expected_wins_optimal': sum(ew_opt) * 1.0 / len(ew_opt),
+            }
+            with open(score_dir, 'w') as f:
+                json.dump(eval_out, f)
+            print(json.dumps(eval_out))
+            artioutput.write(str(h1) + str(h2))
+            json.dump(eval_out, artioutput)
+        
+        artioutput.close()
 
     finally:
         if not norun_web:
