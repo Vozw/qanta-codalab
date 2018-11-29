@@ -93,7 +93,7 @@ def get_question_query(qid, question, char_idx):
             'sent_index': sent_idx,
             'char_index': char_idx,
             'text': question['text'][:char_idx],
-            'hp': (hp_num_guesses, hp_threshold)
+            'hp': [hp_num_guesses, hp_threshold]
     }
     return query
 
@@ -173,6 +173,9 @@ def evaluate(input_dir, output_dir, score_dir, char_step_size, hostname,
             
         artioutput = open("artioutput.txt", "w")
         artioutput.write("Start of output")
+        
+        global hp_num_guesses
+        global hp_threshold
         
         for cur_hp in [(h1, h2) for h1 in h1_values for h2 in h2_values]:
             hp_num_guesses = cur_hp[0]
