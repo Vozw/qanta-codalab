@@ -175,8 +175,8 @@ def evaluate(input_dir, output_dir, score_dir, char_step_size, hostname,
         artioutput.write("Start of output")
         
         for cur_hp in [(h1, h2) for h1 in h1_values for h2 in h2_values]:
-            hp_num_guesses = h1
-            hp_threshold = h2
+            hp_num_guesses = cur_hp[0]
+            hp_threshold = cur_hp[1]
             
             if status is not None and status['batch'] is True:
                 url = f'http://{hostname}:4861/api/1.0/quizbowl/batch_act'
