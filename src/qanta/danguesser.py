@@ -5,6 +5,7 @@ import torch.nn as nn
 from torch.utils.data import Dataset
 from torch.nn.utils import clip_grad_norm_
 import time
+from nltk.tokenize import word_tokenize 
 
 from dataset import GUESSER_TRAIN_FOLD, GUESSER_DEV_FOLD, GUESSER_TEST_FOLD
 
@@ -49,7 +50,7 @@ def vectorize(ex, word2ind, unique_answers):
     e.g. ['text', 'test', 'is', 'fun'] -> [0, 2, 3, 4]
     """
 
-    question_text = ex.text
+    question_text = word_tokenize(ex.text)
     question_label = list(unique_answers).index(ex.page) if ex.page in unique_answers else 0
     def toIndex(word):
         return word2ind[word] if word in word2ind.keys() else word2ind[UNK]
@@ -102,8 +103,8 @@ def batchify(batch):
     return q_batch
 
 class DanModel(nn.Module):
-    def __init__(self, n_classes, vocab_size, emb_dim=50,
-                 n_hidden_units=50, nn_dropout=.5):
+    def __init__(self, n_classes, vocab_size, emb_dim=100,
+                 n_hidden_units=300, nn_dropout=.5):
         super(DanModel, self).__init__()
         self.n_classes = n_classes
         self.vocab_size = vocab_size
@@ -152,10 +153,11 @@ def evaluate(data_loader, model, device):
 class DanGuesser:
     def __init__(self):
         self.device = torch.device("cpu")
-        self.batch_size = 16
+        self.batch_size = 256
         self.num_epochs = 20
         self.grad_clipping = 5
         self.checkpoint = 50
+        self.num_workers = 3
         self.save_model = "qanta.pt"
 
     def train(self, questions) -> None:
@@ -176,13 +178,13 @@ class DanGuesser:
         dev_dataset = Question_Dataset(dev_data, word2ind, unique_answers)
         dev_sampler = torch.utils.data.sampler.SequentialSampler(dev_dataset)
         dev_loader = torch.utils.data.DataLoader(dev_dataset, batch_size=self.batch_size,
-                                               sampler=dev_sampler, num_workers=0,
+                                               sampler=dev_sampler, num_workers=self.num_workers,
                                                collate_fn=batchify)
         accuracy = 0
         for epoch in range(self.num_epochs):
             print('start epoch %d' % epoch)
             train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=self.batch_size,
-                                               sampler=train_sampler, num_workers=0,
+                                               sampler=train_sampler, num_workers=self.num_workers,
                                                collate_fn=batchify)
             accuracy = self.__train_step__(model, train_loader, dev_loader, accuracy)
         print('start testing:\n')
@@ -190,7 +192,7 @@ class DanGuesser:
         test_dataset = Question_Dataset(test_data, word2ind, unique_answers)
         test_sampler = torch.utils.data.sampler.SequentialSampler(test_dataset)
         test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=self.batch_size,
-                                               sampler=test_sampler, num_workers=0,
+                                               sampler=test_sampler, num_workers=self.num_workers,
                                                collate_fn=batchify)
         evaluate(test_loader, model, self.device)
 
