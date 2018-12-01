@@ -9,7 +9,9 @@ from nltk.tokenize import word_tokenize
 
 from dataset import GUESSER_TRAIN_FOLD, GUESSER_DEV_FOLD, GUESSER_TEST_FOLD
 
-MODEL_PATH = 'dan.pickle'
+MODEL_PATH = "qanta.pt"
+UNIQUE_ANSWERS_PATH = "unique_answers.pickle"
+WORD2IND_PATH = "word2ind.pickle"
 
 UNK = '<unk>'
 PAD = '<pad>'
@@ -49,13 +51,15 @@ def vectorize(ex, word2ind, unique_answers):
     Output:  vectorized sentence(python list) and label(int)
     e.g. ['text', 'test', 'is', 'fun'] -> [0, 2, 3, 4]
     """
-
-    question_text = word_tokenize(ex.text)
     question_label = list(unique_answers).index(ex.page) if ex.page in unique_answers else 0
+    return vectorize_without_label(ex.text, word2ind, unique_answers), question_label
+
+def vectorize_without_label(text, word2ind, unique_answers):
+    question_text = word_tokenize(text)
     def toIndex(word):
         return word2ind[word] if word in word2ind.keys() else word2ind[UNK]
     
-    return [toIndex(word) for word in question_text], question_label
+    return [toIndex(word) for word in question_text]
 
 def extract_unique_answer_list(train_data):
     answer_set = set()
@@ -151,14 +155,17 @@ def evaluate(data_loader, model, device):
     return accuracy
 
 class DanGuesser:
-    def __init__(self):
+    def __init__(self, model=None, unique_answers=None, word2ind=None):
         self.device = torch.device("cpu")
         self.batch_size = 256
-        self.num_epochs = 20
+        self.num_epochs = 2
         self.grad_clipping = 5
         self.checkpoint = 50
         self.num_workers = 3
-        self.save_model = "qanta.pt"
+
+        self.model = model
+        self.unique_answers = unique_answers
+        self.word2ind = word2ind
 
     def train(self, questions) -> None:
         train_data = questions[GUESSER_TRAIN_FOLD]
@@ -168,7 +175,13 @@ class DanGuesser:
         unique_answers = extract_unique_answer_list(train_data)
         voc, word2ind, ind2word = load_words(train_data)
 
-        model = DanModel(len(unique_answers), len(voc))
+        with open(UNIQUE_ANSWERS_PATH, "wb") as fp:
+            pickle.dump(unique_answers, fp)
+
+        with open(WORD2IND_PATH, "wb") as fp:
+            pickle.dump(word2ind, fp)
+
+        model = DanModel(len(unique_answers), len(word2ind))
         model.to(self.device)
         print(model)
 
@@ -216,8 +229,6 @@ class DanGuesser:
         epoch_loss_total = 0
         start = time.time()
 
-        #### modify the following code to complete the training funtion
-
         for idx, batch in enumerate(train_data_loader):
             question_text = batch['text'].to(self.device)
             question_len = batch['len']
@@ -239,20 +250,29 @@ class DanGuesser:
                 print_loss_total = 0
                 curr_accuracy = evaluate(dev_data_loader, model, self.device)
                 if accuracy < curr_accuracy:
-                    torch.save(model, self.save_model)
+                    torch.save(model, MODEL_PATH)
                     accuracy = curr_accuracy
         return accuracy
-        
 
     def guess(self, questions: List[str], max_n_guesses: Optional[int]) -> List[List[Tuple[str, float]]]:
-        return None
+        guesses = []
+        for q in questions:
+            vectorized_text = vectorize_without_label(q, self.word2ind, self.unique_answers)
+            self.model.eval()
+            result = self.model(torch.LongTensor([vectorized_text]), torch.FloatTensor([len(vectorized_text)]), is_prob=True)
+            top_n, top_i = result.topk(max_n_guesses)
+            guesses.append([(self.unique_answers[answer], top_n.flatten()[index].item()) for index, answer in enumerate(top_i.flatten())])
+
+        return guesses
 
     def save(self):
         return None
 
-    @classmethod
-    def load(cls):
-        with open(MODEL_PATH, 'rb') as f:
-            params = pickle.load(f)
-            guesser = DanGuesser()
-            return guesser
+    @staticmethod
+    def load():
+        model = torch.load(MODEL_PATH)
+        with open (WORD2IND_PATH, 'rb') as fp:
+            word2ind = pickle.load(fp)
+        with open (UNIQUE_ANSWERS_PATH, 'rb') as fp:
+            unique_answers = pickle.load(fp)
+        return DanGuesser(model=model, unique_answers=unique_answers, word2ind=word2ind)
