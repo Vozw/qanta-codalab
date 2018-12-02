@@ -9,14 +9,14 @@ from tqdm import tqdm
 from sklearn.feature_extraction.text import TfidfVectorizer
 from flask import Flask, jsonify, request
 
-import util
-from dataset import QuizBowlDataset
+import qanta.util
+from qanta.dataset import QuizBowlDataset
 
 import re
 import nltk
 from nltk.corpus import stopwords
 import nltk.tokenize as nt
-from pattern.en import singularize
+#from pattern.en import singularize
 # from apiclient.discovery import build
 import pandas as pd
 

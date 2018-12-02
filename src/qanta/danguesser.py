@@ -5,9 +5,9 @@ import torch.nn as nn
 from torch.utils.data import Dataset
 from torch.nn.utils import clip_grad_norm_
 import time
-from nltk.tokenize import word_tokenize 
+import nltk
 
-from dataset import GUESSER_TRAIN_FOLD, GUESSER_DEV_FOLD, GUESSER_TEST_FOLD
+from qanta.dataset import GUESSER_TRAIN_FOLD, GUESSER_DEV_FOLD, GUESSER_TEST_FOLD
 
 MODEL_PATH = "qanta.pt"
 UNIQUE_ANSWERS_PATH = "unique_answers.pickle"
@@ -55,7 +55,7 @@ def vectorize(ex, word2ind, unique_answers):
     return vectorize_without_label(ex.text, word2ind, unique_answers), question_label
 
 def vectorize_without_label(text, word2ind, unique_answers):
-    question_text = word_tokenize(text)
+    question_text = text.split()
     def toIndex(word):
         return word2ind[word] if word in word2ind.keys() else word2ind[UNK]
     
@@ -65,7 +65,9 @@ def extract_unique_answer_list(train_data):
     answer_set = set()
     for example in train_data:
         answer_set.add(example.page)
-    return list(answer_set)
+    answers = list(answer_set)
+    answers.sort()
+    return answers
     
 class Question_Dataset(Dataset):
     """
@@ -158,10 +160,10 @@ class DanGuesser:
     def __init__(self, model=None, unique_answers=None, word2ind=None):
         self.device = torch.device("cpu")
         self.batch_size = 256
-        self.num_epochs = 2
+        self.num_epochs = 20
         self.grad_clipping = 5
         self.checkpoint = 50
-        self.num_workers = 3
+        self.num_workers = 4
 
         self.model = model
         self.unique_answers = unique_answers

@@ -7,9 +7,9 @@ import click
 from tqdm import tqdm
 from flask import Flask, jsonify, request
 
-import util
-from dataset import QuizBowlDataset
-from danguesser import DanGuesser
+from qanta import util
+from qanta.dataset import QuizBowlDataset
+from qanta.danguesser import DanGuesser
 
 BUZZ_NUM_GUESSES = 10
 BUZZ_THRESHOLD = 0.3
