@@ -23,8 +23,8 @@ logging.getLogger('requests').setLevel(logging.CRITICAL)
 
 hp_num_guesses = None
 hp_threshold = None
-h1_values = [7, 10, 13]
-h2_values = [0.3, 0.5, 0.7]
+h1_values = [5, 10]
+h2_values = [0.0001, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.009, 0.010, 0.011, 0.012, 0.013, 0.014, 0.015, 0.016, 0.017, 0.018, 0.019, 0.020, 0.022, 0.024, 0.026, 0.028, 0.030, 0.032, 0.034, 0.036, 0.038, 0.040, 0.045, 0.050, 0.055, 0.060, 0.065, 0.070, 0.075, 0.080, 0.085, 0.090, 0.095, 0.1, 0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17, 0.18, 0.19, 0.2, 0.22, 0.24, 0.26, 0.28, 0.3, 0.35, 0.4, 0.5]
 
 
 class CurveScore:
@@ -171,16 +171,16 @@ def evaluate(input_dir, output_dir, score_dir, char_step_size, hostname,
         with open(input_dir) as f:
             questions = json.load(f)['questions']
             
-        artioutput = open("artioutput.txt", "w")
-        artioutput.write("Start of output")
         
         #global hp_num_guesses
         #global hp_threshold
         
-        for cur_hp in [(h1, h2) for h1 in h1_values for h2 in h2_values]:
+        for cur_hp in [[h1, h2] for h1 in h1_values for h2 in h2_values]:
             #hp_num_guesses = cur_hp[0]
             #hp_threshold = cur_hp[1]
-            
+            print(cur_hp)
+            with open("artiinstant", "a") as artiinstant:
+                artiinstant.write(str(cur_hp[0]) + " : " + str(cur_hp[1]))
             if status is not None and status['batch'] is True:
                 url = f'http://{hostname}:4861/api/1.0/quizbowl/batch_act'
                 answers = get_answer_batch(url, questions,
@@ -218,13 +218,15 @@ def evaluate(input_dir, output_dir, score_dir, char_step_size, hostname,
                 'expected_wins': sum(ew) * 1.0 / len(ew),
                 'expected_wins_optimal': sum(ew_opt) * 1.0 / len(ew_opt),
             }
-            with open(score_dir, 'w') as f:
+            with open(score_dir, 'a') as f:
                 json.dump(eval_out, f)
             print(json.dumps(eval_out))
-            artioutput.write(str(cur_hp))
-            json.dump(eval_out, artioutput)
+
+            with open("artioutput.txt", "a") as artioutput:
+                artioutput.write(str(cur_hp) + ":" + str(eval_out) + "\n")
+                #json.dump(eval_out, artioutput)
         
-        artioutput.close()
+       # artioutput.close()
 
     finally:
         if not norun_web:

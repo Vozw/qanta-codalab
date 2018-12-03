@@ -27,11 +27,15 @@ def guess_and_buzz(model, question_text, hparams) -> Tuple[str, bool]:
 
 
 def batch_guess_and_buzz(model, questions, hparams) -> List[Tuple[str, bool]]:
+    # with open("arti_tdebug_i", "a") as arti:
+    #    arti.write(str(hparams))
+    #    arti.write(" : " + str(hparams[0]) + "\n")
     question_guesses = model.guess(questions, hparams[0])
     outputs = []
     for guesses in question_guesses:
         scores = [guess[1] for guess in guesses]
         buzz = scores[0] / sum(scores) >= hparams[1]
+        #buzz = scores[0] / sum(scores) >= 0.1
         outputs.append((guesses[0][0], buzz))
     return outputs
 
@@ -114,7 +118,7 @@ def create_app(enable_batch=True):
     @app.route('/api/1.0/quizbowl/batch_act', methods=['POST'])
     def batch_act():
         questions = [q['text'] for q in request.json['questions']]
-        hparams = [q['hp'] for q in request.json['questions']]
+        hparams = request.json['questions'][0]['hp']
         return jsonify([
             {'guess': guess, 'buzz': True if buzz else False}
             for guess, buzz in batch_guess_and_buzz(tfidf_guesser, questions, hparams)
