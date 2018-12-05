@@ -1,8 +1,8 @@
+.vscode/
 src/predictions.json
 src/scores.json
 data/*
 models/*
-*.pickle
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
