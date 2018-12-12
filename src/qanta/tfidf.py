@@ -14,23 +14,23 @@ from qanta.dataset import QuizBowlDataset
 
 
 MODEL_PATH = 'tfidf.pickle'
-BUZZ_NUM_GUESSES = 10
-BUZZ_THRESHOLD = 0.3
+BUZZ_NUM_GUESSES = 5
+BUZZ_THRESHOLD = 0.22271
 
 
 def guess_and_buzz(model, question_text) -> Tuple[str, bool]:
     guesses = model.guess([question_text], BUZZ_NUM_GUESSES)[0]
     scores = [guess[1] for guess in guesses]
-    buzz = scores[0] / sum(scores) >= BUZZ_THRESHOLD
+    buzz = scores[0] / sum(scores) - max(((650 - len(question_text))/4920), 0) >= BUZZ_THRESHOLD
     return guesses[0][0], buzz
 
 
 def batch_guess_and_buzz(model, questions) -> List[Tuple[str, bool]]:
     question_guesses = model.guess(questions, BUZZ_NUM_GUESSES)
     outputs = []
-    for guesses in question_guesses:
+    for (guesses, q_text) in zip(question_guesses, questions):
         scores = [guess[1] for guess in guesses]
-        buzz = scores[0] / sum(scores) >= BUZZ_THRESHOLD
+        buzz = scores[0] / sum(scores) - max(((650 - len(q_text))/4920), 0) >= BUZZ_THRESHOLD
         outputs.append((guesses[0][0], buzz))
     return outputs
 
